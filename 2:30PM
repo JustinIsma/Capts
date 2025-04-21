@@ -1,0 +1,231 @@
+import tkinter as tk
+from tkinter import messagebox
+import hashlib
+
+def hash_password(password):
+    """Hash a password for storing."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# Dictionary to store user accounts
+users = {
+    "admin": hash_password("admin")
+}
+
+# List to store employee names
+employees = []
+
+# Manager record
+manager = {
+    "name": "John Doe",
+    "email": "john.doe@example.com"
+}
+
+def login():
+    """Log in to an existing account."""
+    username = username_entry.get()
+    password = password_entry.get()
+    hashed_password = hash_password(password)
+    if username in users and users[username] == hashed_password:
+        messagebox.showinfo("Success", "Login successful!")
+        open_main_page()
+    else:
+        messagebox.showerror("Error", "Invalid username or password.")
+    username_entry.delete(0, tk.END)
+    password_entry.delete(0, tk.END)
+
+def open_main_page():
+    """Open the main page after successful login."""
+    global main_window
+    login_window.destroy()  # Close the login window
+
+    # Create the main window
+    main_window = tk.Tk()
+    main_window.title("Main Page")
+    main_window.geometry("600x400")  # Larger size
+    main_window.configure(bg="#e6e6fa")  # Lavender background
+
+    # Add a welcome label
+    welcome_label = tk.Label(main_window, text="Welcome to Zid Ratlook Employee Management!", bg="#e6e6fa", fg="black", font=("Arial", 16))
+    welcome_label.pack(pady=20)
+
+    # Create a frame for buttons on the left side
+    button_frame = tk.Frame(main_window, bg="#e6e6fa")
+    button_frame.pack(side=tk.LEFT, padx=20, pady=20, fill=tk.Y)
+
+    # Add an "Add" button
+    add_button = tk.Button(button_frame, text="Add Employee", command=add_employee, bg="#ffd700", fg="black")
+    add_button.pack(pady=5, fill=tk.X)
+
+    # Add a "Remove" button
+    remove_button = tk.Button(button_frame, text="Remove Employee", command=remove_employee, bg="#ffd700", fg="black")
+    remove_button.pack(pady=5, fill=tk.X)
+
+    # Add a "Print" button
+    print_button = tk.Button(button_frame, text="Print Attendance", command=print_attendance, bg="#ffd700", fg="black")
+    print_button.pack(pady=5, fill=tk.X)
+
+    # Add a "Modify Manager" button to the lower side
+    modify_manager_button = tk.Button(button_frame, text="Modify Manager", command=modify_manager, bg="#ffd700", fg="black")
+    modify_manager_button.pack(side=tk.BOTTOM, pady=5, fill=tk.X)
+
+    # Listbox to display employees
+    global employee_listbox
+    employee_listbox = tk.Listbox(main_window, width=50, height=10, bg="#e6e6fa")
+    employee_listbox.pack(side=tk.LEFT, padx=20, pady=20, fill=tk.BOTH, expand=True)
+
+    # Populate the listbox with existing employees
+    for employee in employees:
+        employee_listbox.insert(tk.END, employee)
+
+    # Add a logout button to the lower right side
+    logout_button = tk.Button(main_window, text="Logout", command=logout, bg="#ffd700", fg="black")
+    logout_button.pack(side=tk.BOTTOM, anchor=tk.SE, padx=20, pady=20)
+
+    main_window.mainloop()
+
+def logout():
+    """Logout and return to the login page."""
+    main_window.destroy()
+    main()
+
+def add_employee():
+    """Add a new employee."""
+    add_window = tk.Toplevel()
+    add_window.title("Add Employee")
+    add_window.geometry("400x300")
+    add_window.configure(bg="#e6e6fa")
+
+    add_frame = tk.Frame(add_window, bg="#e6e6fa")
+    add_frame.pack(pady=20)
+
+    tk.Label(add_frame, text="Full Name:", bg="#e6e6fa", fg="black").grid(row=0, column=0, padx=5, pady=5)
+    global add_entry
+    add_entry = tk.Entry(add_frame, width=20)
+    add_entry.grid(row=0, column=1, padx=5, pady=5)
+
+    tk.Label(add_frame, text="Age:", bg="#e6e6fa", fg="black").grid(row=1, column=0, padx=5, pady=5)
+    age_entry = tk.Entry(add_frame, width=20)
+    age_entry.grid(row=1, column=1, padx=5, pady=5)
+
+    tk.Label(add_frame, text="Gender:", bg="#e6e6fa", fg="black").grid(row=2, column=0, padx=5, pady=5)
+    gender_var = tk.StringVar(value="male")
+    male_button = tk.Radiobutton(add_frame, text="Male", variable=gender_var, value="male", bg="#e6e6fa", fg="black")
+    male_button.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+    female_button = tk.Radiobutton(add_frame, text="Female", variable=gender_var, value="female", bg="#e6e6fa", fg="black")
+    female_button.grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
+
+    tk.Label(add_frame, text="Address:", bg="#e6e6fa", fg="black").grid(row=3, column=0, padx=5, pady=5)
+    address_entry = tk.Entry(add_frame, width=20)
+    address_entry.grid(row=3, column=1, columnspan=1, padx=5, pady=5)
+
+    tk.Label(add_frame, text="Email:", bg="#e6e6fa", fg="black").grid(row=4, column=0, padx=5, pady=5)
+    email_entry = tk.Entry(add_frame, width=20)
+    email_entry.grid(row=4, column=1, columnspan=1, padx=5, pady=5)
+
+    tk.Button(add_frame, text="Add", command=confirm_add, bg="#ffd700", fg="black").grid(row=5, column=0, columnspan=3, pady=10)
+
+def confirm_add():
+    """Confirm adding a new employee."""
+    name = add_entry.get()
+    age = age_entry.get()
+    gender = gender_var.get()
+    address = address_entry.get()
+    email = email_entry.get()
+
+    if name and age and gender and address and email:
+        if messagebox.askyesno("Confirm", "Do you want to add this employee?"):
+            employees.append(name)
+            employee_listbox.insert(tk.END, name)
+            add_entry.delete(0, tk.END)
+            age_entry.delete(0, tk.END)
+            address_entry.delete(0, tk.END)
+            email_entry.delete(0, tk.END)
+            messagebox.showinfo("Success", "Employee added successfully!")
+    else:
+        messagebox.showerror("Error", "Please fill all fields.")
+
+def remove_employee():
+    """Remove an employee."""
+    selected_index = employee_listbox.curselection()
+    if selected_index:
+        employee_name = employee_listbox.get(selected_index)
+        employees.remove(employee_name)
+        employee_listbox.delete(selected_index)
+        messagebox.showinfo("Success", "Employee removed successfully!")
+    else:
+        messagebox.showerror("Error", "Please select an employee to remove.")
+
+def print_attendance():
+    """Print attendance for all employees."""
+    if employees:
+        attendance_message = "Attendance Report:\n" + "\n".join(employees)
+        messagebox.showinfo("Attendance", attendance_message)
+    else:
+        messagebox.showinfo("Attendance", "No employees to display.")
+
+def modify_manager():
+    """Modify the manager's record."""
+    modify_window = tk.Toplevel()
+    modify_window.title("Modify Manager")
+    modify_window.geometry("300x200")
+    modify_window.configure(bg="#e6e6fa")
+
+    modify_frame = tk.Frame(modify_window, bg="#e6e6fa")
+    modify_frame.pack(pady=20)
+
+    name_label = tk.Label(modify_frame, text="Manager Name:", bg="#e6e6fa", fg="black")
+    name_label.grid(row=0, column=0, padx=5, pady=5)
+    global name_entry
+    name_entry = tk.Entry(modify_frame, width=20)
+    name_entry.insert(0, manager["name"])
+    name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+    email_label = tk.Label(modify_frame, text="Manager Email:", bg="#e6e6fa", fg="black")
+    email_label.grid(row=1, column=0, padx=5, pady=5)
+    global email_entry
+    email_entry = tk.Entry(modify_frame, width=20)
+    email_entry.insert(0, manager["email"])
+    email_entry.grid(row=1, column=1, padx=5, pady=5)
+
+    save_button = tk.Button(modify_frame, text="Save", command=confirm_modify, bg="#ffd700", fg="black")
+    save_button.grid(row=2, column=0, columnspan=2, pady=10)
+
+def confirm_modify():
+    """Confirm modifying the manager's record."""
+    manager["name"] = name_entry.get()
+    manager["email"] = email_entry.get()
+    messagebox.showinfo("Success", "Manager record updated successfully!")
+
+def main():
+    global username_entry, password_entry, login_window
+
+    # Create the login window
+    login_window = tk.Tk()
+    login_window.title("Login System")
+    login_window.geometry("300x200")
+    login_window.configure(bg="#e6e6fa")  # Lavender background
+
+    # Create a frame for the login form
+    frame = tk.Frame(login_window, bg="#e6e6fa")
+    frame.pack(pady=20)
+
+    # Username label and entry
+    username_label = tk.Label(frame, text="Username:", bg="#e6e6fa", fg="black")
+    username_label.grid(row=0, column=0, padx=5, pady=5)
+    username_entry = tk.Entry(frame, width=20)
+    username_entry.grid(row=0, column=1, padx=5, pady=5)
+
+    # Password label and entry
+    password_label = tk.Label(frame, text="Password:", bg="#e6e6fa", fg="black")
+    password_label.grid(row=1, column=0, padx=5, pady=5)
+    password_entry = tk.Entry(frame, width=20, show="*")
+    password_entry.grid(row=1, column=1, padx=5, pady=5)
+
+    # Login button
+    login_button = tk.Button(frame, text="Login", command=login, bg="#ffd700", fg="black")
+    login_button.grid(row=2, column=0, columnspan=2, pady=10)
+
+    login_window.mainloop()
+
+if __name__ == "__main__":
+    main()
