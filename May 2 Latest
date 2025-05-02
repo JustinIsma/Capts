@@ -1,0 +1,614 @@
+import sys
+import hashlib
+import uuid
+from astrapy import DataAPIClient
+from PyQt5.QtWidgets import QSizePolicy,QDesktopWidget,QMainWindow,QShortcut,QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QTableWidget, QTableWidgetItem, QFormLayout, QRadioButton, QButtonGroup, QListWidget
+from PyQt5.QtGui import QFont, QIcon,QKeySequence,QPixmap
+from PyQt5.QtCore import Qt
+
+# Astra DB settings
+ASTRA_DB_APPLICATION_TOKEN = "AstraCS:mZeTmGTuaCAyImDtWnGldsXn:b02f6f33102df559825a5c43d1c7b92741ed4363febaeda3beb343f1f3db7fe2"
+ASTRA_DB_API_ENDPOINT = "https://61b56856-7f0d-4b96-8176-1d413d6f0d36-us-east1.apps.astra.datastax.com"
+
+client = DataAPIClient(token=ASTRA_DB_APPLICATION_TOKEN)
+database = client.get_database(ASTRA_DB_API_ENDPOINT)
+
+# Dictionary to store user accounts
+users = {
+    "admin": hashlib.sha256("admin".encode()).hexdigest()
+}
+
+# Function to fetch manager details
+def get_manager_details():
+    try:
+        collection = database.get_collection("manager_information")
+        manager = collection.find_one({})
+        return manager["name"], manager["email"]
+    except Exception as e:
+        print(f"Error fetching manager details: {e}")
+        return None, None
+
+# Function to update manager details
+def update_manager_details(name, email):
+    try:
+        collection = database.get_collection("manager_information")
+        manager = collection.find_one({})
+        if manager:
+            collection.update_one({"id": manager["id"]}, {"$set": {"name": name, "email": email}})
+        else:
+            manager_id = str(uuid.uuid4())
+            collection.insert_one({"id": manager_id, "name": name, "email": email})
+    except Exception as e:
+        print(f"Error updating manager details: {e}")
+
+# Function to add a new employee
+def add_employee(name, age, gender, address, email):
+    try:
+        collection = database.get_collection("employees_information")
+        employee_id = str(uuid.uuid4())
+        collection.insert_one({
+            "id": employee_id,
+            "name": name,
+            "age": int(age),
+            "gender": gender,
+            "address": address,
+            "email": email
+        })
+    except Exception as e:
+        print(f"Error adding employee: {e}")
+
+# Function to fetch all employees
+def get_all_employees():
+    try:
+        collection = database.get_collection("employees_information")
+        employees = collection.find({})
+        return [employee["name"] for employee in employees]
+    except Exception as e:
+        print(f"Error fetching employees: {e}")
+        return []
+
+# Function to remove an employee
+def remove_employee(name):
+    try:
+        collection = database.get_collection("employees_information")
+        employee = collection.find_one({"name": name})
+        if employee:
+            collection.delete_one({"id": employee["id"]})
+    except Exception as e:
+        print(f"Error removing employee: {e}")
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+class LoginWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+        self.setStyleSheet("""
+            QWidget {
+                background: qlineargradient(x1:0, y1:0.5, x2:1, y2:0.5, stop:0 #FFDB58, stop:1 #FFA500);
+                border-radius: 15px;
+            }
+        """)
+
+    def initUI(self):
+        self.setWindowTitle("LOGIN")
+        self.setGeometry(150, 100, 300, 200)
+        self.layout = QVBoxLayout()
+        self.layout.setSpacing(10)
+        self.layout.setAlignment(Qt.AlignCenter)
+
+        self.setWindowIcon(QIcon("C:\\Users\\chrjo\\OneDrive\\Documents\\capstonerr\\nobglogo.png"))
+
+        self.username_label = QLabel("Username:")
+        self.username_label.setStyleSheet("font-size: 16px; font-weight: 500; color: #19189a;")
+        self.username_label.setFont(QFont("Montserrat Medium", 16))
+        self.layout.addWidget(self.username_label)
+        self.username_entry = QLineEdit()
+        self.username_entry.setStyleSheet("border-radius: 10px ;border: 1px solid black ;background-color: qlineargradient(x1:0, y1:0.5, x2:1, y2:0.5, stop:0 #9F81F7, stop:1 #B3EBF2);")
+        self.username_entry.setFont(QFont("Montserrat Regular", 14))
+        self.layout.addWidget(self.username_entry)
+
+        self.password_label = QLabel("Password:")
+        self.password_label.setStyleSheet("font-size: 16px; font-weight: 500; color: #19189a;")
+        self.password_label.setFont(QFont("Montserrat Medium", 16))
+        self.layout.addWidget(self.password_label)
+        self.password_entry = QLineEdit()
+        self.password_entry.setStyleSheet("border-radius: 10px ;border: 1px solid black ;background-color: qlineargradient(x1:0, y1:0.5, x2:1, y2:0.5, stop:0 #9F81F7, stop:1 #B3EBF2);")
+        self.password_entry.setEchoMode(QLineEdit.Password)
+        self.password_entry.setFont(QFont("Montserrat Regular", 14))
+        self.layout.addWidget(self.password_entry)
+
+        self.button_layout = QHBoxLayout()
+        self.button_layout.addStretch(1)  # Add stretchable space before the button
+
+        self.login_button = QPushButton("LOGIN")
+        self.login_button.setStyleSheet("border-radius: 10px; border: 1px solid black; color: white;background-color: qlineargradient(x1:0, y1:0.5, x2:1, y2:0.5, stop:0 #9F81F7, stop:1 #B3EBF2);")
+        self.login_button.setFont(QFont("Montserrat Medium", 16))
+        self.login_button.setFixedSize(150, 40)
+        self.login_button.clicked.connect(self.login)
+        self.button_layout.addWidget(self.login_button)
+        self.button_layout.addStretch(1)
+        self.layout.addLayout(self.button_layout)
+
+        self.enter_shortcut = QShortcut(QKeySequence(Qt.Key_Return), self)
+        self.enter_shortcut.activated.connect(self.login_button.click)
+
+        self.setLayout(self.layout)
+        self.center()
+
+    def center(self):
+        qr = self.frameGeometry()
+        cp = QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+
+    def login(self):
+        username = self.username_entry.text()
+        password = self.password_entry.text()
+        hashed_password = hash_password(password)
+        if username in users and users[username] == hashed_password:
+            QMessageBox.information(self, "Success", "Login successful!")
+            self.close()
+            self.main_window = MainWindow()
+            self.main_window.show()
+        else:
+            QMessageBox.critical(self, "Error", "Invalid username or password.")
+        self.username_entry.clear()
+        self.password_entry.clear()
+
+class RemoveEmployeeWindow(QWidget):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle("Remove Employee")
+        self.setGeometry(100, 100, 400, 300)
+        self.layout = QVBoxLayout()
+
+        self.employee_listbox = QListWidget()
+        self.layout.addWidget(self.employee_listbox)
+
+        self.remove_button = QPushButton("Remove Selected Employee")
+        self.remove_button.clicked.connect(self.remove_selected_employee)
+        self.layout.addWidget(self.remove_button)
+
+        self.remove_shortcut = QShortcut(QKeySequence("Return"), self)
+        self.remove_shortcut.activated.connect(self.remove_selected_employee)
+
+        
+        self.setLayout(self.layout)
+        self.update_employee_list()
+
+    def update_employee_list(self):
+        self.employee_listbox.clear()
+        employees = get_all_employees()
+        for employee in employees:
+            self.employee_listbox.addItem(employee)
+
+    def remove_selected_employee(self):
+        selected_index = self.employee_listbox.currentRow()
+        if selected_index != -1:
+            employee_name = self.employee_listbox.item(selected_index).text()
+            self.close()
+            self.main_window.confirm_remove_employee(employee_name)
+            
+
+        else:
+            QMessageBox.critical(self, "Error", "Please select an employee to remove.")
+
+   
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.data_fetched = False
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle("Zid Ratlook Employee Management")
+        self.setGeometry(100, 100, 1400, 600)
+        self.setWindowIcon(QIcon("C:\\Users\\chrjo\\OneDrive\\Documents\\capstonerr\\nobglogo.png"))
+
+        self.setStyleSheet("""
+            QMainWindow {
+                background: qlineargradient(x1:0, y1:0.5, x2:1, y2:0.5, stop:0 #FFDB58, stop:1 #FFA500);
+            }
+        """)
+
+        main_layout = QHBoxLayout()
+
+        left_layout = QVBoxLayout()
+
+        self.employee_table = QTableWidget()
+        self.employee_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.employee_table.setSelectionMode(QTableWidget.NoSelection)
+        self.employee_table.setColumnCount(5)
+        self.employee_table.setHorizontalHeaderLabels(["Name", "Absences", "Lates", "Total Hours", "Email"])
+        self.employee_table.setRowCount(0)
+        self.employee_table.resizeColumnsToContents()
+        self.employee_table.resizeRowsToContents()
+
+        self.employee_table.setColumnWidth(0, 200)
+        self.employee_table.setColumnWidth(1, 100)
+        self.employee_table.setColumnWidth(2, 100)
+        self.employee_table.setColumnWidth(3, 150)
+        self.employee_table.setColumnWidth(4, 250)
+
+        total_column_width = sum([
+            self.employee_table.columnWidth(0),
+            self.employee_table.columnWidth(1),
+            self.employee_table.columnWidth(2),
+            self.employee_table.columnWidth(3),
+            self.employee_table.columnWidth(4)
+        ])
+
+        self.employee_table.setFixedWidth(total_column_width + 20)
+        self.employee_table.verticalHeader().setDefaultSectionSize(30)
+
+        self.employee_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #FFFFFF;
+                border-radius: 5px;
+                border: 1px solid #CCCCCC;
+            }
+            QTableWidget::item {
+                border-bottom: 1px solid #CCCCCC;
+            }
+            QTableWidget::item:nth-child(even) {
+                background-color: #F5F5F5;
+            }
+            QTableWidget::item:nth-child(odd) {
+                background-color: #FFFFFF;
+            }
+        """)
+
+        self.employee_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.employee_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.employee_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        left_layout.addWidget(self.employee_table)
+
+        right_layout = QVBoxLayout()
+        right_layout.setSpacing(15)
+
+        self.welcome_label = QLabel("Welcome to Zid Ratlook Employee Management!")
+        self.welcome_label.setStyleSheet("font-size: 20px;  font-weight: bold; color: #19189a;")
+        self.welcome_label.setFont(QFont("Montserrat Bold", 20))
+        self.welcome_label.setAlignment(Qt.AlignCenter)
+        right_layout.addWidget(self.welcome_label)
+
+        import os
+        self.logo_label = QLabel()
+        logo_path = "C:\\Users\\chrjo\\OneDrive\\Documents\\capstonerr\\nobglogo.png"
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            if not pixmap.isNull():
+                scaled_pixmap = pixmap.scaled(550, 280, Qt.KeepAspectRatio)
+                self.logo_label.setPixmap(scaled_pixmap)
+                self.logo_label.setAlignment(Qt.AlignCenter)
+            else:
+                self.logo_label.setText("Failed to load image")
+        else:
+            self.logo_label.setText("Image file not found")
+        right_layout.addWidget(self.logo_label)
+
+        button_layout = QVBoxLayout()
+        button_style = """
+        QPushButton {
+            background-color: qlineargradient(x1:0, y1:0.5, x2:1, y2:0.5, stop:0 #9F81F7, stop:1 #B3EBF2);
+            color: white;
+            border-radius: 15px;
+            padding: 5px;
+            border: 1px solid #BDC3C7;
+            margin: 2px;
+        }
+        QPushButton:hover {
+            background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7FDBDA, stop:1 #4A90E2);
+        }
+        QPushButton:pressed {
+            background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7FDBDA, stop:1 #4A90E2);
+        }
+        """
+
+        self.add_button = QPushButton("Add Employee")
+        self.add_button.setStyleSheet(button_style)
+        self.add_button.setFont(QFont("Montserrat Medium", 14))
+        self.add_button.clicked.connect(self.add_employee)
+        self.add_button.setFixedSize(570, 45)
+        button_layout.addWidget(self.add_button)
+
+        self.remove_button = QPushButton("Remove Employee")
+        self.remove_button.setStyleSheet(button_style)
+        self.remove_button.setFont(QFont("Montserrat Medium", 14))
+        self.remove_button.clicked.connect(self.show_remove_employee_window)
+        self.remove_button.setFixedSize(570, 45)
+        button_layout.addWidget(self.remove_button)
+
+        self.print_button = QPushButton("Print Attendance")
+        self.print_button.setStyleSheet(button_style)
+        self.print_button.setFont(QFont("Montserrat Medium", 14))
+        self.print_button.clicked.connect(self.print_attendance)
+        self.print_button.setFixedSize(570, 45)
+        button_layout.addWidget(self.print_button)
+
+        right_layout.addLayout(button_layout)
+
+        bottom_layout = QHBoxLayout()
+        self.modify_manager_button = QPushButton("Modify Manager")
+        self.modify_manager_button.setStyleSheet(button_style)
+        self.modify_manager_button.setFont(QFont("Montserrat Medium", 14))
+        self.modify_manager_button.clicked.connect(self.modify_manager)
+        self.modify_manager_button.setFixedSize(270, 35)
+        bottom_layout.addWidget(self.modify_manager_button, 0)
+
+        self.logout_button = QPushButton("Logout")
+        self.logout_button.setStyleSheet(button_style)
+        self.logout_button.setFont(QFont("Montserrat Medium", 14))
+        self.logout_button.clicked.connect(self.logout)
+        self.logout_button.setFixedSize(270, 35)
+        bottom_layout.addStretch(1)
+        bottom_layout.addWidget(self.logout_button, 0)
+
+        right_layout.addLayout(bottom_layout)
+
+        main_layout.addLayout(left_layout)
+        main_layout.addLayout(right_layout)
+
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.central_widget.setLayout(main_layout)
+
+        if not self.data_fetched:
+            self.update_cloud_data()
+            self.data_fetched = True
+
+    def update_cloud_data(self):
+        try:
+            employees_collection = database.get_collection("employees_information")
+            employees = employees_collection.find({})
+
+            attendance_collection = database.get_collection("attendance")
+            attendance_records = attendance_collection.find({})
+
+            self.employee_table.setRowCount(0)
+
+            attendance_data = {}
+            for record in attendance_records:
+                employee_name = record.get("employee_name")
+                if employee_name not in attendance_data:
+                    attendance_data[employee_name] = {
+                        "absences": 0,
+                        "lates": 0,
+                        "total_hours": 0
+                    }
+                if record.get("status") == "absent":
+                    attendance_data[employee_name]["absences"] += 1
+                elif record.get("status") == "late":
+                    attendance_data[employee_name]["lates"] += 1
+                attendance_data[employee_name]["total_hours"] += record.get("hours_worked", 0)
+
+            row = 0
+            for doc in employees:
+                name = doc.get("name", "Unknown Employee")
+                absences = attendance_data.get(name, {}).get("absences", 0)
+                lates = attendance_data.get(name, {}).get("lates", 0)
+                total_hours = attendance_data.get(name, {}).get("total_hours", 0)
+                email = doc.get("email", "Unknown Email")
+
+                self.employee_table.insertRow(row)
+                self.employee_table.setItem(row, 0, QTableWidgetItem(name))
+                self.employee_table.setItem(row, 1, QTableWidgetItem(str(absences)))
+                self.employee_table.setItem(row, 2, QTableWidgetItem(str(lates)))
+                self.employee_table.setItem(row, 3, QTableWidgetItem(str(total_hours)))
+                self.employee_table.setItem(row, 4, QTableWidgetItem(email))
+                row += 1
+        except Exception as e:
+            print(f"Error fetching data from the cloud database: {e}")
+
+    def show_remove_employee_window(self):
+        self.remove_window = RemoveEmployeeWindow(self)
+        self.remove_window.show()
+
+    def confirm_remove_employee(self, employee_name):
+        self.remove_window = QWidget()
+        self.remove_window.setWindowTitle("Confirm Remove Employee")
+        self.remove_window.setGeometry(100, 100, 400, 200)
+        self.remove_window.setWindowIcon(QIcon("C:\\Users\\chrjo\\OneDrive\\Documents\\capstonerr\\nobglogo.png"))
+        self.remove_layout = QVBoxLayout()
+
+        self.username_label = QLabel("Username:")
+        self.remove_layout.addWidget(self.username_label)
+        self.username_entry = QLineEdit()
+        self.remove_layout.addWidget(self.username_entry)
+
+        self.password_label = QLabel("Password:")
+        self.remove_layout.addWidget(self.password_label)
+        self.password_entry = QLineEdit()
+        self.password_entry.setEchoMode(QLineEdit.Password)
+        self.remove_layout.addWidget(self.password_entry)
+
+        self.confirm_button = QPushButton("Confirm Remove")
+        self.confirm_button.clicked.connect(lambda: self.remove_employee(employee_name))
+        self.remove_layout.addWidget(self.confirm_button)
+        
+
+        self.remove_window.setLayout(self.remove_layout)
+        self.remove_window.show()
+
+    def remove_employee(self, employee_name):
+        username = self.username_entry.text()
+        password = self.password_entry.text()
+        hashed_password = hash_password(password)
+        if username in users and users[username] == hashed_password:
+            remove_employee(employee_name)
+            QMessageBox.information(self, "Success", "Employee removed successfully!")
+            self.remove_window.close()
+            self.update_cloud_data()
+        else:
+            QMessageBox.critical(self, "Error", "Invalid username or password.")
+        self.username_entry.clear()
+        self.password_entry.clear()
+
+    def add_employee(self):
+        self.add_window = QWidget()
+        self.add_window.setWindowTitle("Add Employee")
+        self.add_window.setGeometry(100, 100, 400, 400)
+        self.add_window.setWindowIcon(QIcon("C:\\Users\\chrjo\\OneDrive\\Documents\\capstonerr\\nobglogo.png"))
+        self.add_layout = QFormLayout()
+        self.add_layout.setSpacing(10)
+
+        self.add_name_label = QLabel("Full Name:")
+        self.add_entry = QLineEdit()
+        self.add_layout.addRow(self.add_name_label, self.add_entry)
+
+        self.add_age_label = QLabel("Age:")
+        self.age_entry = QLineEdit()
+        self.add_layout.addRow(self.add_age_label, self.age_entry)
+
+        self.add_gender_label = QLabel("Gender:")
+        self.gender_group = QButtonGroup()
+        self.male_button = QRadioButton("Male")
+        self.gender_group.addButton(self.male_button)
+        self.female_button = QRadioButton("Female")
+        self.gender_group.addButton(self.female_button)
+        self.add_layout.addRow(self.add_gender_label, self.male_button)
+        self.add_layout.addRow("", self.female_button)
+
+        self.add_address_label = QLabel("Address:")
+        self.address_entry = QLineEdit()
+        self.add_layout.addRow(self.add_address_label, self.address_entry)
+
+        self.add_email_label = QLabel("Email:")
+        self.email_entry = QLineEdit()
+        self.add_layout.addRow(self.add_email_label, self.email_entry)
+
+        self.add_rfid_label = QLabel("RFID Code:")
+        self.rfid_entry = QLineEdit()
+        self.add_layout.addRow(self.add_rfid_label, self.rfid_entry)
+
+        self.add_fp_label = QLabel("FingerPrint Code:")
+        self.fp_entry = QLineEdit()
+        self.add_layout.addRow(self.add_fp_label, self.fp_entry)
+
+        self.add_button = QPushButton("Add")
+        self.add_button.clicked.connect(self.confirm_add)
+        self.add_layout.addRow(self.add_button)
+
+        self.add_window.setLayout(self.add_layout)
+        self.add_window.show()
+
+    def confirm_add(self):
+        name = self.add_entry.text()
+        age = self.age_entry.text()
+        gender = "male" if self.male_button.isChecked() else "female"
+        address = self.address_entry.text()
+        email = self.email_entry.text()
+
+        if name and age and gender and address and email:
+            if QMessageBox.question(self, "Confirm", "Do you want to add this employee?") == QMessageBox.Yes:
+                add_employee(name, age, gender, address, email)
+                self.add_entry.clear()
+                self.age_entry.clear()
+                self.address_entry.clear()
+                self.email_entry.clear()
+                QMessageBox.information(self, "Success", "Employee added successfully!")
+                self.add_window.close()
+                self.update_cloud_data()
+        else:
+            QMessageBox.critical(self, "Error", "Please fill all fields.")
+
+    def print_attendance(self):
+        employees = []
+        for row in range(self.employee_table.rowCount()):
+            row_data = []
+            for column in range(self.employee_table.columnCount()):
+                item = self.employee_table.item(row, column)
+                if item:
+                    row_data.append(item.text())
+                else:
+                    row_data.append("N/A")
+            employees.append(row_data)
+
+        if employees:
+            attendance_message = "Attendance Report:\n" + "\n".join([" | ".join(employee) for employee in employees])
+            QMessageBox.information(self, "Attendance", attendance_message)
+        else:
+            QMessageBox.information(self, "Attendance", "No employees to display.")
+
+    def modify_manager(self):
+        self.modify_window = QWidget()
+        self.modify_window.setWindowTitle("Modify Manager")
+        self.modify_window.setGeometry(50, 50, 400, 200)
+        self.modify_window.setWindowIcon(QIcon("C:\\Users\\chrjo\\OneDrive\\Documents\\capstonerr\\nobglogo.png"))
+        self.modify_layout = QVBoxLayout()
+        self.modify_layout.setSpacing(10)
+
+        manager_details = get_manager_details()
+        self.name_label = QLabel("Manager Name:")
+        self.modify_layout.addWidget(self.name_label)
+        self.name_entry = QLineEdit(manager_details[0])
+        self.modify_layout.addWidget(self.name_entry)
+
+        self.email_label = QLabel("Manager Email:")
+        self.modify_layout.addWidget(self.email_label)
+        self.email_entry = QLineEdit(manager_details[1])
+        self.modify_layout.addWidget(self.email_entry)
+
+        self.email_label = QLabel("RFID Code:")
+        self.modify_layout.addWidget(self.email_label)
+        self.email_entry = QLineEdit(manager_details[1])
+        self.modify_layout.addWidget(self.email_entry)
+
+        self.email_label = QLabel("FingerPrint Code:")
+        self.modify_layout.addWidget(self.email_label)
+        self.email_entry = QLineEdit(manager_details[1])
+        self.modify_layout.addWidget(self.email_entry)
+
+        self.save_button = QPushButton("Save")
+        self.save_button.clicked.connect(self.confirm_modify)
+        self.modify_layout.addWidget(self.save_button)
+
+        self.modify_window.setLayout(self.modify_layout)
+        self.modify_window.show()
+
+    def confirm_modify(self):
+        name = self.name_entry.text()
+        email = self.email_entry.text()
+        if name and email:
+            try:
+                collection = database.get_collection("manager_information")
+                manager = collection.find_one({})
+                if manager:
+                    collection.update_one({"id": manager["id"]}, {"$set": {"name": name, "email": email}})
+                else:
+                    manager_id = str(uuid.uuid4())
+                    collection.insert_one({
+                        "id": manager_id,
+                        "name": name,
+                        "email": email
+                    })
+            except Exception as e:
+                print(f"Error updating manager in the cloud database: {e}")
+
+            QMessageBox.information(self, "Success", "Manager record updated successfully!")
+            self.modify_window.close()
+        else:
+            QMessageBox.critical(self, "Error", "Please fill all fields.")
+
+    def logout(self):
+        self.close()
+        self.login_window = LoginWindow()
+        self.login_window.show()
+        if hasattr(self, 'add_window') and self.add_window:
+            self.add_window.close()
+
+def main():
+    app = QApplication(sys.argv)
+    login_window = LoginWindow()
+    login_window.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
